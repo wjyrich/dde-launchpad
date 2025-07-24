@@ -243,7 +243,20 @@ FocusScope {
                             // get destoryed (e.g. switch page or folder close caused destory), dropping at that moment
                             // will cause a crash.
                             dndItem.Drag.hotSpot = target.Drag.hotSpot
-                            dndItem.Drag.mimeData = target.Drag.mimeData
+
+                            // 动态修改 mimeData，如果应用已在任务栏驻留则移除任务栏拖拽数据
+                            let mimeData = target.Drag.mimeData
+                            if (DesktopIntegration.isDockedApp(model.desktopId)) {
+                                // 创建新的 mimeData 对象，排除任务栏相关数据
+                                let newMimeData = {}
+                                for (let key in mimeData) {
+                                    if (key !== "text/x-dde-dock-dnd-appid" && key !== "text/x-dde-dock-dnd-source") {
+                                        newMimeData[key] = mimeData[key]
+                                    }
+                                }
+                                mimeData = newMimeData
+                            }
+                            dndItem.Drag.mimeData = mimeData
 
                             parent.grabToImage(function(result) {
                                 dndItem.Drag.imageSource = result.url;

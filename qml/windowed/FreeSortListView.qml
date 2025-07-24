@@ -298,7 +298,20 @@ Item {
                 Drag.hotSpot.y: height / 2
                 Drag.dragType: Drag.Automatic
                 Drag.active: mouseArea.drag.active
-                Drag.mimeData: Helper.generateDragMimeData(model.desktopId)
+                Drag.mimeData: {
+                    let mimeData = Helper.generateDragMimeData(model.desktopId)
+                    // 如果应用已在任务栏驻留则移除任务栏拖拽数据
+                    if (DesktopIntegration.isDockedApp(model.desktopId)) {
+                        let newMimeData = {}
+                        for (let key in mimeData) {
+                            if (key !== "text/x-dde-dock-dnd-appid" && key !== "text/x-dde-dock-dnd-source") {
+                                newMimeData[key] = mimeData[key]
+                            }
+                        }
+                        return newMimeData
+                    }
+                    return mimeData
+                }
                 Drag.onActiveChanged: function() {
                     if (!Drag.active) {
                         listViewDragScroller.stopScroll()
