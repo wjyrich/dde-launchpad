@@ -33,6 +33,18 @@ InputEventItem {
     // ----------- Drag and Drop related functions START -----------
     Label {
         property string currentlyDraggedId
+        property string currentlyDraggedIconName
+
+        property bool mergeAnimPending: false
+        //被拖拽图标
+        property string mergeAnimTargetIcon: ""
+        //放下的图标或文件夹
+        property string mergeAnimTargetIcon2: ""
+        // 鼠标松手位置（窗口坐标）
+        property real mergeAnimStartX: 0
+        property real mergeAnimStartY: 0
+
+        property real mergeSize: 0
 
         signal dragEnded()
 
@@ -45,6 +57,7 @@ InputEventItem {
                 text = "Dragging " + currentlyDraggedId
             } else {
                 currentlyDraggedId = ""
+                currentlyDraggedIconName = ""
                 dragEnded()
             }
         }
@@ -547,6 +560,8 @@ InputEventItem {
                             delegate: DropArea {
                                 Keys.forwardTo: [iconItemDelegate]
 
+                                property bool isDragHover: false
+
                                 visible: !folderGridViewPopup.visible || folderGridViewPopup.currentFolderId !== Number(model.desktopId.replace("internal/folders/", ""))
                                 width: gridViewContainer.cellWidth
                                 height: gridViewContainer.cellHeight
@@ -554,14 +569,20 @@ InputEventItem {
                                     if (folderGridViewPopup.opened) {
                                         folderGridViewPopup.close()
                                     }
-                                    dndDropEnterTimer.dragId = drag.getDataAsString("text/x-dde-launcher-dnd-desktopId")
+                                    let dragId = drag.getDataAsString("text/x-dde-launcher-dnd-desktopId")
+                                    if (dragId !== model.desktopId) {
+                                        isDragHover = true
+                                    }
+                                    dndDropEnterTimer.dragId = dragId
                                     dndDropEnterTimer.restart()
                                 }
                                 onExited: {
+                                    isDragHover = false
                                     dndDropEnterTimer.stop()
                                     dndDropEnterTimer.dragId = ""
                                 }
                                 onDropped: function (drop) {
+                                    isDragHover = false
                                     dndDropEnterTimer.stop()
                                     dndDropEnterTimer.dragId = ""
                                     let dragId = drop.getDataAsString("text/x-dde-launcher-dnd-desktopId")
@@ -571,6 +592,15 @@ InputEventItem {
                                         op = -1
                                     } else if (drop.x > (width - sideOpPadding)) {
                                         op = 1
+                                    }
+                                    if (op === 0) {
+                                        dndItem.mergeAnimTargetIcon = dndItem.currentlyDraggedIconName
+                                        dndItem.mergeAnimTargetIcon2 = !folderIcons ? iconItemDelegate.iconSource : ""
+                                        let cursorScene = mapToItem(null, drop.x, drop.y)
+                                        let hs = dndItem.Drag.hotSpot
+                                        dndItem.mergeAnimStartX = cursorScene.x - hs.x + dndItem.mergeSize / 2
+                                        dndItem.mergeAnimStartY = cursorScene.y - hs.y + dndItem.mergeSize / 2
+                                        dndItem.mergeAnimPending = true
                                     }
                                     dropOnItem(dragId, model.desktopId, op)
                                     proxyModel.sort(0)
@@ -606,6 +636,7 @@ InputEventItem {
                                     }
                                     enabled: !folderGridViewPopup.visible
                                     dndEnabled: !folderGridViewPopup.opened
+                                    isDragHover: parent.isDragHover
                                     Drag.mimeData: Helper.generateDragMimeData(model.desktopId)
                                     visible: dndItem.currentlyDraggedId !== model.desktopId
                                     iconSource: (iconName && iconName !== "") ? iconName : "application-x-desktop"
